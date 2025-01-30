@@ -8,7 +8,7 @@ using namespace std;
 
 #if defined(USING_EIGEN)
 #define EIGEN_NO_DEBUG
-#define EIGEN_DONT_PARALLELIZE
+//#define EIGEN_DONT_PARALLELIZE
 #define EIGEN_VECTORIZE
 #endif
 

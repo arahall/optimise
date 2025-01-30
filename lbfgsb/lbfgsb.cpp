@@ -7,6 +7,7 @@
 #include <numeric>
 #include <algorithm>
 #include <stdexcept>
+#include <omp.h>
 
 #include "lbfgsb.h"
 
@@ -14,7 +15,7 @@ using namespace std;
 
 #if defined(USING_EIGEN)
 #define EIGEN_NO_DEBUG
-#define EIGEN_DONT_PARALLELIZE
+//#define EIGEN_DONT_PARALLELIZE
 #define EIGEN_VECTORIZE
 #else 
 #include "lu.h"
@@ -163,24 +164,27 @@ static tuple<VectorXd, VectorXd> get_cauchy_point(const VectorXd& x, const Vecto
 	return make_tuple(xc, c);
 }
 
-static tuple<bool, VectorXd> subspace_minimisation(const VectorXd& x, const VectorXd& g,
-												   const VectorXd& l, const VectorXd& u,
-												   const VectorXd& xc, const VectorXd& c,
-												   double theta, MatrixXd& w, const MatrixXd& m)
+static bool subspace_minimisation(const VectorXd& x, const VectorXd& g, const VectorXd& l, const VectorXd& u, 
+								  const VectorXd& xc, const VectorXd& c, double theta, MatrixXd& w, const MatrixXd& m, 
+								  VectorXd &xbar)
 {
 	size_t n = x.size();
 	vector<size_t> free_vars_index;
+
+#pragma omp parallel for
 	for (size_t i = 0; i < n; ++i)
 	{
 		if (xc[i] > l[i] && xc[i] < u[i])
 		{
+#pragma omp critical
 			free_vars_index.push_back(i);
 		}
 	}
 	size_t num_free_vars = free_vars_index.size();
 	if (num_free_vars == 0)
 	{
-		return { false, xc }; // line search not required on return
+		xbar = xc;
+		return false;
 	}
 	MatrixXd wz(num_free_vars, c.size());
 	wz = w(free_vars_index, Eigen::all);  // Directly extracting rows using index list
@@ -208,13 +212,13 @@ static tuple<bool, VectorXd> subspace_minimisation(const VectorXd& x, const Vect
 	double alpha_star = find_alpha(l, u, xc, du, free_vars_index);
 
 	// compute the subspace minimisation
-	VectorXd xbar(xc);
+	xbar = xc;
 	for (size_t i = 0; i < num_free_vars; ++i)
 	{
 		size_t idx = free_vars_index[i];
 		xbar[idx] += alpha_star * du[i];
 	}
-	return { true, xbar };
+	return true;
 }
 
 static double alpha_zoom(function<double(const VectorXd&)> func,
@@ -314,7 +318,7 @@ static MatrixXd hessian(const MatrixXd& s, const MatrixXd& y, double theta)
 	mm.bottomRightCorner(l.rows(), s.cols()).noalias() = theta * sT * s;
 
 	// Compute the inverse of the full matrix mm
-	return mm.inverse();
+	return mm.partialPivLu().inverse();
 }
 bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 					  function<VectorXd(const VectorXd&)> gradient,
@@ -345,9 +349,12 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 			throw runtime_error("LBFGSB::optimise - lower bound must be less than upper boound");
 		}
 	}
+	
 	MatrixXd w = MatrixXd::Zero(n, 1), m = MatrixXd::Zero(1, 1);
 	MatrixXd y_history, s_history;
-
+	VectorXd xbar(n);
+	
+	constexpr double eps = numeric_limits<double>::epsilon();
 	double f = func(x);
 	VectorXd g = gradient(x);
 	if (g.size() != n)
@@ -382,9 +389,7 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 		tuple<VectorXd, VectorXd> cp = get_cauchy_point(x, g, lb, ub, theta, w, m);
 		VectorXd xc = get<0>(cp);
 		VectorXd c = get<1>(cp);
-		tuple<bool, VectorXd> sm = subspace_minimisation(x, g, lb, ub, xc, c, theta, w, m);
-		bool flag = get<0>(sm);
-		VectorXd xbar = get<1>(sm);
+		bool flag = subspace_minimisation(x, g, lb, ub, xc, c, theta, w, m, xbar);
 		VectorXd dx = xbar - x;
 		double alpha = flag ? strong_wolfe(func, gradient, x, f, g, dx, ln_srch_maxiter, c1, c2, alpha_max) : 1.0;
 		x += alpha * dx;
@@ -408,7 +413,7 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 		dx = x - x_old;
 		VectorXd dg = g - g_old;
 		double curv = dx.dot(dg);
-		if (curv >= numeric_limits<double>::epsilon())
+		if (curv >= eps)
 		{
 			if (y_history.cols() == max_history)
 			{
@@ -496,26 +501,28 @@ static tuple<VectorXd, VectorXd> get_cauchy_point(const VectorXd& x, const Vecto
 	//c = add(c, scale(p, dt_min));
 	return make_tuple(xc, c);
 }
-static tuple<bool, VectorXd> subspace_minimisation(const VectorXd& x, const VectorXd& g,
+static bool subspace_minimisation(const VectorXd& x, const VectorXd& g,
 												   const VectorXd& l, const VectorXd& u,
 												   const VectorXd& xc, const VectorXd& c,
 												   double theta, const vector<VectorXd>& w,
-												   const vector<VectorXd>& m)
+												   const vector<VectorXd>& m, VectorXd &xbar)
 {
 	size_t n = x.size();
 	vector<size_t> free_vars_index;
+#pragma omp parallel for
 	for (size_t i = 0; i < n; ++i)
 	{
 		if (xc[i] > l[i] && xc[i] < u[i])
 		{
+#pragma omp critical
 			free_vars_index.push_back(i);
 		}
 	}
 	size_t num_free_vars = free_vars_index.size();
 	if (num_free_vars == 0)
 	{
-		VectorXd xbar(xc);
-		return { false, xbar }; // line search not required on return
+		xbar = xc;
+		return false;
 	}
 	vector<VectorXd> wz(num_free_vars);
 	for (size_t i = 0; i < num_free_vars; ++i)
@@ -552,13 +559,12 @@ static tuple<bool, VectorXd> subspace_minimisation(const VectorXd& x, const Vect
 	double alpha_star = find_alpha(l, u, xc, du, free_vars_index);
 
 	// compute the subspace minimisation
-	VectorXd xbar(xc);
+	xbar = xc;
 	for (size_t i = 0; i < num_free_vars; ++i)
 	{
 		size_t idx = free_vars_index[i];
 		xbar[idx] += alpha_star * du[i];
 	}
-	return { true, xbar };
 }
 static double alpha_zoom(function<double(const VectorXd&)> func,
 						 function<VectorXd(const VectorXd&)> gradient,
@@ -673,7 +679,8 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 	//
 	size_t n = x.size(); // the problem dimension
 	double tol_f = std::numeric_limits<double>::epsilon() * eps_factor;
-	
+
+	VectorXd xbar(n);
 	vector<VectorXd> y_history, s_history;
 	vector<VectorXd> w(n, VectorXd(1, 0.0)), m(1, VectorXd(1, 0.0));
 	if (debug)
@@ -722,9 +729,7 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 		tuple<VectorXd, VectorXd> cp = get_cauchy_point(x, g, lb, ub, theta, w, m);
 		VectorXd xc = get<0>(cp);
 		VectorXd c = get<1>(cp);
-		tuple<bool, VectorXd> sm = subspace_minimisation(x, g, lb, ub, xc, c, theta, w, m);
-		bool flag = get<0>(sm);
-		VectorXd xbar = get<1>(sm);
+		bool flag = subspace_minimisation(x, g, lb, ub, xc, c, theta, w, m, xbar);
 		double alpha = flag ? strong_wolfe(func, gradient, x, f, g, subtract(xbar, x), ln_srch_maxiter, c1, c2, alpha_max) : 1.0;
 		x = add(x, scale(subtract(xbar, x), alpha));
 		double f_new = func(x);
