@@ -24,14 +24,6 @@ using namespace std;
 #include "matrix_ops.h"
 using namespace matrix_ops;
 
-static vector<size_t> argsort(const VectorXd& x)
-{
-	vector <size_t> idx(x.size());
-	iota(idx.begin(), idx.end(), 0);
-	sort(idx.begin(), idx.end(), [&x](size_t i, size_t j) { return x[i] < x[j]; });
-	return idx;
-}
-
 static double get_optimality(const VectorXd& x, const VectorXd& g,
 							 const VectorXd& l, const VectorXd& u)
 {

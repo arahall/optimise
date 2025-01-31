@@ -1,8 +1,9 @@
+#include <algorithm>
+#include <numeric>
 #include "matrix_ops.h"
 
 #if !defined(USING_EIGEN)
 #include <stdexcept>
-#include <algorithm>
 
 vector<vector<double>> matrix_ops::identity(size_t n)
 {
@@ -324,4 +325,11 @@ void matrix_ops::add_scale(const VectorXd& a, const VectorXd& x, const double& b
               [b](double ai, double xi) {
                   return ai + b * xi;
               });
+}
+vector<size_t> matrix_ops::argsort(const VectorXd& x)
+{
+    vector <size_t> idx(x.size());
+    iota(idx.begin(), idx.end(), 0);
+    sort(idx.begin(), idx.end(), [&x](size_t i, size_t j) { return x[i] < x[j]; });
+    return idx;
 }

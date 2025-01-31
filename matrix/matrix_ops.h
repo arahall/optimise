@@ -8,8 +8,8 @@ using Eigen::MatrixXd;
 using Eigen::VectorXd;
 #else
 typedef vector<double> VectorXd;
-#include <vector>
 #endif
+#include <vector>
 namespace matrix_ops
 {
 #if !defined(USING_EIGEN)
@@ -42,5 +42,7 @@ namespace matrix_ops
     void remove_end_column(MatrixXd& a);
 #endif
     void add_scale(const VectorXd& a, const VectorXd& x, const double& b, VectorXd& y);
+    vector<size_t> argsort(const VectorXd& x);
+
 };
 #endif
