@@ -1,4 +1,4 @@
-this is a pure C++ implementation of the LBFGSB algorithm. The code uses EIGEN for matrix and vector
+this is a pure C++ implementation of the LBFGSB algorithm. The code uses [EIGEN](https://eigen.tuxfamily.org/index.php?title=Main_Page) for matrix and vector
 operations but if this is not available then a home-rolled matrix library is used. To use EIGEN specify
 the USING_EIGEN in the pre-processor options. 
 
