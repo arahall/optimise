@@ -5,9 +5,9 @@
 #if !defined(USING_EIGEN)
 #include <stdexcept>
 
-vector<vector<double>> matrix_ops::identity(size_t n)
+MatrixXd matrix_ops::identity(size_t n)
 {
-    vector<vector<double>> a(n);
+    MatrixXd a(n);
     for (size_t i = 0; i < n; ++i)
     {
         a[i].resize(n, 0.0);
@@ -15,12 +15,12 @@ vector<vector<double>> matrix_ops::identity(size_t n)
     }
     return a;
 }
-vector<vector<double>> matrix_ops::tril(const vector<vector<double>>& a, int k)
+MatrixXd matrix_ops::tril(const MatrixXd& a, int k)
 {
     // returns lower triangle of a
     size_t n = a.size();
     size_t m = a[0].size();
-    vector<vector<double>> l(n, vector<double>(m, 0.0));
+    MatrixXd l(n, VectorXd(m, 0.0));
     for (int i = 0; i < n; ++i)
     {
         for (int j = 0; j < m; ++j)
@@ -33,39 +33,39 @@ vector<vector<double>> matrix_ops::tril(const vector<vector<double>>& a, int k)
     }
     return l;
 }
-vector<double> matrix_ops::diag(const vector<vector<double>>& a)
+VectorXd matrix_ops::diag(const MatrixXd& a)
 {
     size_t n = a.size();
-    vector<double> d = vector<double>(n);
+    VectorXd d = VectorXd(n);
     for (size_t i = 0; i < n; ++i)
     {
         d[i] = a[i][i];
     }
     return d;
 }
-vector<vector<double>> matrix_ops::diag(const vector<double>& d)
+MatrixXd matrix_ops::diag(const VectorXd& d)
 {
     size_t n = d.size();
-    vector<vector<double>> dm(n, vector<double>(n, 0.0));
+    MatrixXd dm(n, VectorXd(n, 0.0));
     for (size_t i = 0; i < n; ++i)
     {
         dm[i][i] = d[i];
     }
     return dm;
 }
-void matrix_ops::initialise(vector<vector<double>>& a, const vector<double>& v)
+void matrix_ops::initialise(MatrixXd& a, const VectorXd& v)
 {
     if (!a.empty())
     {
         throw runtime_error("initialise matrix - a must be empty");
     }
-    a = vector<vector<double>>(v.size(), vector<double>(1));
+    a = MatrixXd(v.size(), VectorXd(1));
     for (size_t i = 0; i < v.size(); ++i)
     {
         a[i][0] = v[i];
     }
 }
-void matrix_ops::add_end_column(vector<vector<double>>& a, const vector<double>& v)
+void matrix_ops::add_end_column(MatrixXd& a, const VectorXd& v)
 {
     if (a.empty())
     {
@@ -84,15 +84,15 @@ void matrix_ops::add_end_column(vector<vector<double>>& a, const vector<double>&
         }
     }
 }
-size_t matrix_ops::num_columns(const vector<vector<double>>& a)
+size_t matrix_ops::num_columns(const MatrixXd& a)
 {
     return a.empty() ? 0 : a[0].size();
 }
-size_t matrix_ops::num_rows(const vector<vector<double>>& a)
+size_t matrix_ops::num_rows(const MatrixXd& a)
 {
     return a.empty() ? 0 : a.size();
 }
-void matrix_ops::remove_end_column(vector<vector<double>>& a)
+void matrix_ops::remove_end_column(MatrixXd& a)
 {
     if (a.empty() || a[0].empty())
     {
@@ -103,30 +103,30 @@ void matrix_ops::remove_end_column(vector<vector<double>>& a)
         row.pop_back();
     }
 }
-vector<double> matrix_ops::scale(const vector<double>& x, double a)
+VectorXd matrix_ops::scale(const VectorXd& x, double a)
 {
-    vector<double> y(x);
+    VectorXd y(x);
     transform(y.begin(), y.end(), y.begin(), [&a](auto& c) {return c * a; });
     return y;
 }
-vector<vector<double>> matrix_ops::scale(const vector<vector<double>>& x, double a)
+MatrixXd matrix_ops::scale(const MatrixXd& x, double a)
 {
     size_t n = x.size();
-    vector<vector<double>> s(n);
+    MatrixXd s(n);
     for (size_t i = 0; i < n; ++i)
     {
         s[i] = scale(x[i], a);
     }
     return s;
 }
-vector<vector<double>> matrix_ops::copy(const vector<vector<double>>& a_)
+MatrixXd matrix_ops::copy(const MatrixXd& a_)
 {
     if (a_.empty())
     {
         throw runtime_error("copy: matrix a is empty");
     }
     size_t n = a_.size();
-    vector<vector<double>> a(n);
+    MatrixXd a(n);
     for (size_t i = 0; i < n; ++i)
     {
         a[i].resize(a_[i].size());
@@ -137,16 +137,16 @@ vector<vector<double>> matrix_ops::copy(const vector<vector<double>>& a_)
     }
     return a;
 }
-vector<vector<double>> matrix_ops::vconcat(const vector<vector<double>>& a, const vector<vector<double>>& b)
+MatrixXd matrix_ops::vconcat(const MatrixXd& a, const MatrixXd& b)
 {
-    vector<vector<double>> ab = a;
+    MatrixXd ab = a;
     ab.insert(ab.end(), b.begin(), b.end());
     return ab;
 }
-vector<vector<double>> matrix_ops::hconcat(const vector<vector<double>>& a, const vector<vector<double>>& b)
+MatrixXd matrix_ops::hconcat(const MatrixXd& a, const MatrixXd& b)
 {
     size_t n = a.size();
-    vector<vector<double>> result(n);
+    MatrixXd result(n);
     for (size_t i = 0; i < n; ++i)
     {
         result[i].insert(result[i].end(), a[i].begin(), a[i].end());
@@ -154,14 +154,14 @@ vector<vector<double>> matrix_ops::hconcat(const vector<vector<double>>& a, cons
     }
     return result;
 }
-vector<double> matrix_ops::get_col(const vector<vector<double>>& a, size_t col)
+VectorXd matrix_ops::get_col(const MatrixXd& a, size_t col)
 {
     if (a.empty() || col < 0 || col >= a[0].size())
     {
         throw out_of_range("Invalid column index!");
     }
 
-    vector<double> column;
+    VectorXd column;
     for (const auto& row : a)
     {
         column.push_back(row[col]);
@@ -169,7 +169,7 @@ vector<double> matrix_ops::get_col(const vector<vector<double>>& a, size_t col)
 
     return column;
 }
-vector<double> matrix_ops::get_row(const vector<vector<double>>& a, size_t row)
+VectorXd matrix_ops::get_row(const MatrixXd& a, size_t row)
 {
     if (row < 0 || row >= a.size())
     {
@@ -177,10 +177,10 @@ vector<double> matrix_ops::get_row(const vector<vector<double>>& a, size_t row)
     }
     return a[row];
 }
-vector<vector<double>> matrix_ops::transpose(const vector<vector<double>>& a)
+MatrixXd matrix_ops::transpose(const MatrixXd& a)
 {
     size_t n = a.size(), m = a[0].size();
-    vector<vector<double>> t(m);
+    MatrixXd t(m);
     for (size_t i = 0; i < m; ++i)
     {
         t[i].resize(n);
@@ -191,7 +191,7 @@ vector<vector<double>> matrix_ops::transpose(const vector<vector<double>>& a)
     }
     return t;
 }
-vector<double> matrix_ops::multiply(const vector<vector<double>>& a, const vector<double>& x)
+VectorXd matrix_ops::multiply(const MatrixXd& a, const VectorXd& x)
 {
     // mulliply a matrix of size (m, n) by a vector of size n
     size_t m = a.size();
@@ -204,7 +204,7 @@ vector<double> matrix_ops::multiply(const vector<vector<double>>& a, const vecto
     {
         throw runtime_error("multiply - number of cols in a must be the same as the number of rows in x");
     }
-    vector<double> b(m);
+    VectorXd b(m);
     for (size_t i = 0; i < m; ++i)
     {
         b[i] = 0.0;
@@ -215,7 +215,7 @@ vector<double> matrix_ops::multiply(const vector<vector<double>>& a, const vecto
     }
     return b;
 }
-vector<vector<double>> matrix_ops::multiply(const vector<vector<double>>& a, const vector<vector<double>>& b)
+MatrixXd matrix_ops::multiply(const MatrixXd& a, const MatrixXd& b)
 {
     // multiply two matrices
     size_t rows_a = a.size(), cols_a = a[0].size();
@@ -224,7 +224,7 @@ vector<vector<double>> matrix_ops::multiply(const vector<vector<double>>& a, con
     {
         throw invalid_argument("Number of columns in a must equal the number of rows in b");
     }
-    vector<vector<double>> c(rows_a);
+    MatrixXd c(rows_a);
     for (size_t i = 0; i < rows_a; ++i)
     {
         c[i].resize(cols_b, 0.0);
@@ -238,22 +238,22 @@ vector<vector<double>> matrix_ops::multiply(const vector<vector<double>>& a, con
     }
     return c;
 }
-vector<double> matrix_ops::subtract(const vector<double>& a, const vector<double>& b)
+VectorXd matrix_ops::subtract(const VectorXd& a, const VectorXd& b)
 {
     size_t n = a.size();
-    vector<double> c(n);
+    VectorXd c(n);
     for (size_t i = 0; i < n; ++i)
     {
         c[i] = a[i] - b[i];
     }
     return c;
 }
-vector<vector<double>> matrix_ops::subtract(const vector<vector<double>>& a, const vector<vector<double>>& b)
+MatrixXd matrix_ops::subtract(const MatrixXd& a, const MatrixXd& b)
 {
     // subtract two matrices
     size_t m = a.size(); // number of rows
     size_t n = a[0].size(); // number of columns
-    vector<vector<double>> c(n);
+    MatrixXd c(n);
     for (size_t i = 0; i < n; ++i)
     {
         c[i].resize(n);
@@ -264,22 +264,22 @@ vector<vector<double>> matrix_ops::subtract(const vector<vector<double>>& a, con
     }
     return c;
 }
-vector<double> matrix_ops::add(const vector<double>& a, const vector<double>& b)
+VectorXd matrix_ops::add(const VectorXd& a, const VectorXd& b)
 {
     size_t n = a.size();
-    vector<double> c(n);
+    VectorXd c(n);
     for (size_t i = 0; i < n; ++i)
     {
         c[i] = a[i] + b[i];
     }
     return c;
 }
-vector<vector<double>> matrix_ops::add(const vector<vector<double>>& a, const vector<vector<double>>& b)
+MatrixXd matrix_ops::add(const MatrixXd& a, const MatrixXd& b)
 {
     // add two matrices
     size_t m = a.size(); // number of rows
     size_t n = a[0].size(); // number of columns
-    vector<vector<double>> c(n);
+    MatrixXd c(n);
     for (size_t i = 0; i < n; ++i)
     {
         c[i].resize(n);
@@ -290,7 +290,7 @@ vector<vector<double>> matrix_ops::add(const vector<vector<double>>& a, const ve
     }
     return c;
 }
-double matrix_ops::dot(const vector<double>& a, const vector<double>& b)
+double matrix_ops::dot(const VectorXd& a, const VectorXd& b)
 {
     double sum = 0.0;
     size_t n = a.size();
