@@ -2,9 +2,6 @@ this is a pure C++ implementation of the LBFGSB algorithm. The code uses [EIGEN]
 operations but if this is not available then a home-rolled matrix library is used. To use EIGEN specify
 the USING_EIGEN in the pre-processor options. 
 
-this code owes much to a matlab implementation of LBFGSB which can be found here 
-https://github.com/bgranzow/L-BFGS-B/blob/master/
-
 It has been tested with a wide range of standard optimser tests e.g. rosenbrock, matyas, rastrigin, beale etc
 
 Separately, the code can be called from python using the ctypes library. this requires a DLL wrapper in windows 
