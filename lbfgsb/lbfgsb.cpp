@@ -24,6 +24,10 @@ using namespace std;
 #include "matrix_ops.h"
 using namespace matrix_ops;
 
+static inline double clamp(const double& x, const double& low, const double& hi)
+{
+	return max(low, min(hi, x));
+}
 static double get_optimality(const VectorXd& x, const VectorXd& g,
 							 const VectorXd& l, const VectorXd& u)
 {
@@ -210,6 +214,10 @@ static bool subspace_minimisation(const VectorXd& x, const VectorXd& g, const Ve
 		size_t idx = free_vars_index[i];
 		xbar[idx] += alpha_star * du[i];
 	}
+	for (int i = 0; i < n; ++i)
+	{
+		xbar[i] = clamp(xbar[i], l[i], u[i]);
+	}
 	return true;
 }
 
@@ -383,7 +391,8 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 		VectorXd c = get<1>(cp);
 		bool flag = subspace_minimisation(x, g, lb, ub, xc, c, theta, w, m, xbar);
 		VectorXd dx = xbar - x;
-		double alpha = flag ? strong_wolfe(func, gradient, x, f, g, dx, ln_srch_maxiter, c1, c2, alpha_max) : 1.0;
+		double alpha = flag ? min(1.0, strong_wolfe(func, gradient, x, f, g, dx, ln_srch_maxiter, c1, c2, alpha_max))
+			: 1.0;
 		x += alpha * dx;
 		double f_new = func(x);
 		if (debug)
@@ -557,6 +566,11 @@ static bool subspace_minimisation(const VectorXd& x, const VectorXd& g,
 		size_t idx = free_vars_index[i];
 		xbar[idx] += alpha_star * du[i];
 	}
+	for (int i = 0; i < n; ++i)
+	{
+		xbar[i] = clamp(xbar[i], l[i], u[i]);
+	}
+	return true;
 }
 static double alpha_zoom(function<double(const VectorXd&)> func,
 						 function<VectorXd(const VectorXd&)> gradient,
@@ -722,7 +736,8 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 		VectorXd xc = get<0>(cp);
 		VectorXd c = get<1>(cp);
 		bool flag = subspace_minimisation(x, g, lb, ub, xc, c, theta, w, m, xbar);
-		double alpha = flag ? strong_wolfe(func, gradient, x, f, g, subtract(xbar, x), ln_srch_maxiter, c1, c2, alpha_max) : 1.0;
+		double alpha = flag ? min(1.0, strong_wolfe(func, gradient, x, f, g, subtract(xbar, x), ln_srch_maxiter, c1, c2, alpha_max))
+			: 1.0;
 		x = add(x, scale(subtract(xbar, x), alpha));
 		double f_new = func(x);
 		if (debug)
