@@ -406,8 +406,8 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 			{
 				cout << "converged in " << iter << "iterations due to function tolerance: " <<
 					f_tol_check << "tolf: " << tol_f << "\n";
-				return true;
 			}
+			return true;
 		}
 		f = f_new;
 		g = gradient(x);
@@ -428,7 +428,7 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 			w << y_history, theta* s_history;
 			m = hessian(s_history, y_history, theta);
 		}
-		if (debug && curv < numeric_limits<double>::epsilon())
+		if (debug && curv < eps)
 		{
 			cout << "optimise - negative curvature detected. Hessian update skipped\n";
 		}
