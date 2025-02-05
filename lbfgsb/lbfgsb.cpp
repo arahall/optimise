@@ -751,8 +751,8 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 			{
 				cout << "converged in " << iter << "iterations due to function tolerance: " << 
 					f_tol_check << "tolf: " << tol_f << "\n";
-				return true;
 			}
+			return true;
 		}
 		f = f_new;
 		g = gradient(x);
