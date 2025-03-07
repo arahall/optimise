@@ -399,7 +399,7 @@ bool LBFGSB::optimize(function<double(const VectorXd&)> func,
 		{
 			std::cout << "f_new: " << f_new << " f: " << f << "\n";
 		}
-		double f_tol_check = fabs(f_new - f) / max(max(abs(f), 1.0), abs(f_new));
+		double f_tol_check = abs(f_new - f) / max(max(abs(f), 1.0), abs(f_new));
 		if (f_tol_check <= tol_f)
 		{
 			if (debug)

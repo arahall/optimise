@@ -33,6 +33,9 @@
     <ClInclude Include="matrix\matrix_ops.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="toms748\toms748.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -45,6 +48,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="matrix\matrix_ops.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="toms748.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
