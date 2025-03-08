@@ -2,7 +2,7 @@
 #include <limits>
 #include <stdexcept>
 
-#include "toms748.h"
+#include "toms748/toms748.h"
 
 static inline double sign(double x)
 {
@@ -13,7 +13,7 @@ static double get_tolerance(double b, int k)
 	// determines the termination criterion
 	//
 	constexpr double eps = std::numeric_limits<double>::epsilon();
-	double tol = powf(10., -k) + 2 * fabs(b) * eps;
+	double tol = powf(1., -k) + 2 * fabs(b) * eps;
 	return 2.0 * tol;
 }
 static void bracket(function<double(double)> func, 
@@ -94,7 +94,7 @@ static double cubic_zero(double a, double b, double d, double e, double fa,
 	double q33 = (d32 - q22) * fa / (fe - fa);
 	return a + q31 + q32 + q33;
 }
-double TOMS748::root(function<double(double)> func, double a, double b, int neps, int max_iter, double rtol)
+static double TOMS748::root(function<double(double)> func, double a, double b, int neps, int max_iter, double rtol)
 {
 	// finds a solution of f(x) = 0 in the interval a, b
 	// the first iteration is a secant step. starting with the second iteration eithr a quadratic interpolation
@@ -122,11 +122,10 @@ double TOMS748::root(function<double(double)> func, double a, double b, int neps
 		throw std::runtime_error("a, b must bracket a root\n");
 	}
 	double e = std::numeric_limits<double>::infinity(), fe = e, c, d, fd;
-	
 	for (int iter = 0; iter < max_iter; ++iter)
 	{
 		double a0 = a; double b0 = b;
-		double tol = fabs(fb) <= fabs(fa) ? get_tolerance(b, neps) : get_tolerance(a, neps);
+		double tol = fabs(fb) <= fabs(fa) ? get_tolerance(b, neps, rtol) : get_tolerance(a, neps, rtol);
 		if (b - a <= tol)
 		{
 			break;
@@ -152,52 +151,10 @@ double TOMS748::root(function<double(double)> func, double a, double b, int neps
 			c = cubic_zero(a, b, d, e, fa, fb, fd, fe);
 			if ((c - a) * (c - b) >= 0.0)
 			{
-				c = newton_quad(a, b, d, fa, fb, fd, 2);
-			}
-		}
-		e = d;
-		fe = fd;
-		bracket(func, a, b, c, fa, fb, tol, neps, d, fd);
-		if (fa == 0.0 || b - a <= tol)
-		{
-			break;
-		}
-		prof = (fa - fb) * (fa - fd) * (fa - fe) * (fb - fd) * (fb - fe) * (fd - fe);
-		if (prof == 0.0)
-		{
-			c = newton_quad(a, b, d, fa, fb, fd, 3);
-		}
-		else
-		{
-			c = cubic_zero(a, b, d, e, fa, fb, fd, fe);
-			if ((c - a) * (c - b) >= 0.0)
-			{
 				c = newton_quad(a, b, d, fa, fb, fd, 3);
 			}
 		}
-		bracket(func, a, b, c, fa, fb, tol, neps, d, fd);
-		if (fa == 0.0 || b - a <= tol)
-		{
-			break;
-		}
-		e = d;
-		fe = fd;
-		// take a double sized secant step
-		double u, fu;
-		if (fabs(fa) < fabs(fb))
-		{
-			u = a; fu = fa;
-		}
-		else
-		{
-			u = b; fu = fb;
-		}
-		c = u - 2.0 * fu / (fb - fa) * (b - a);
-		if (fabs(c - u) > 0.5 * (b - a))
-		{
-			c = a + 0.5 * (b - a);
-		}
-		bracket(func, a, b, c, fa, fb, tol, neps, d, fd);
+		bracket(func, a, b, c, d, fb, tol, neps, d, fd);
 		if (fa == 0.0 || b - a <= tol)
 		{
 			break;

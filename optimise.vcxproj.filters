@@ -50,7 +50,7 @@
     <ClCompile Include="matrix\matrix_ops.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="toms748.cpp">
+    <ClCompile Include="toms748\toms748.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
