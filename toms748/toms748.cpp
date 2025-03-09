@@ -8,20 +8,11 @@ static inline double sign(double x)
 {
 	return copysign(1., x);
 }
-static double get_tolerance(double b, int k)
-{
-	// determines the termination criterion
-	//
-	constexpr double eps = std::numeric_limits<double>::epsilon();
-	double tol = powf(10., -k) + 2 * fabs(b) * eps;
-	return 2.0 * tol;
-}
 static void bracket(function<double(double)> func, 
-					double &a, double &b, double &c, double &fa, double &fb, double &tol, int neps, 
+					double &a, double &b, double &c, double &fa, double &fb, double tol, int neps, 
 					double &d, double &fd)
 {
 	// adjust c if b-a is very small  or if c is close to a or b
-	tol *= 0.7;
 	if (b - a <= 2 * tol)
 	{
 		c = 0.5 * (a + b);
@@ -48,8 +39,6 @@ static void bracket(function<double(double)> func,
 	{
 		d = a; fd = fa; a = c; fa = fc;
 	}
-	// update the termination condition based on the new interval
-	tol = fabs(fb) <= fabs(fa) ? get_tolerance(b, neps) : get_tolerance(a, neps);
 }
 static double newton_quad(double a, double b, double d, double fa, double fb, double fd, int nsteps)
 {
@@ -94,7 +83,7 @@ static double cubic_zero(double a, double b, double d, double e, double fa,
 	double q33 = (d32 - q22) * fa / (fe - fa);
 	return a + q31 + q32 + q33;
 }
-double TOMS748::root(function<double(double)> func, double a, double b, int neps, int max_iter, double rtol)
+double TOMS748::root(function<double(double)> func, double a, double b, int neps, int max_iter, double tol)
 {
 	// finds a solution of f(x) = 0 in the interval a, b
 	// the first iteration is a secant step. starting with the second iteration eithr a quadratic interpolation
@@ -121,15 +110,14 @@ double TOMS748::root(function<double(double)> func, double a, double b, int neps
 	{
 		throw std::runtime_error("a, b must bracket a root\n");
 	}
-	double e = std::numeric_limits<double>::infinity(), fe = e, c, d, fd;
-	
+	double e = std::numeric_limits<double>::infinity(), fe = e, c, d, fd; 
 	for (int iter = 0; iter < max_iter; ++iter)
 	{
 		double a0 = a; double b0 = b;
-		double tol = fabs(fb) <= fabs(fa) ? get_tolerance(b, neps) : get_tolerance(a, neps);
+		//tol = fabs(fb) <= fabs(fa) ? get_tolerance(b, neps) : get_tolerance(a, neps);
 		if (b - a <= tol)
 		{
-			break;
+			return a;
 		}
 		// for the 1st iteration the secant step is taken
 		if (iter == 0)
@@ -138,7 +126,7 @@ double TOMS748::root(function<double(double)> func, double a, double b, int neps
 			bracket(func, a, b, c, fa, fb, tol, neps, d, fd);
 			if (fa == 0.0 || b - a <= tol)
 			{
-				break;
+				return a;
 			}
 			continue;
 		}
@@ -160,7 +148,7 @@ double TOMS748::root(function<double(double)> func, double a, double b, int neps
 		bracket(func, a, b, c, fa, fb, tol, neps, d, fd);
 		if (fa == 0.0 || b - a <= tol)
 		{
-			break;
+			return a;
 		}
 		prof = (fa - fb) * (fa - fd) * (fa - fe) * (fb - fd) * (fb - fe) * (fd - fe);
 		if (prof == 0.0)
@@ -178,7 +166,7 @@ double TOMS748::root(function<double(double)> func, double a, double b, int neps
 		bracket(func, a, b, c, fa, fb, tol, neps, d, fd);
 		if (fa == 0.0 || b - a <= tol)
 		{
-			break;
+			return a;
 		}
 		e = d;
 		fe = fd;
@@ -200,18 +188,21 @@ double TOMS748::root(function<double(double)> func, double a, double b, int neps
 		bracket(func, a, b, c, fa, fb, tol, neps, d, fd);
 		if (fa == 0.0 || b - a <= tol)
 		{
-			break;
+			return a;
 		}
-		if (b - a >= mu * (b0 - a0))
+		if (b - a < mu * (b0 - a0))
 		{
-			e = d; fe = fd;
-			double temp_c = a + 0.5 * (b - a);
-			bracket(func, a, b, temp_c, fa, fb, tol, neps, d, fd);
+			continue;
 		}
+
+		e = d; fe = fd;
+		double temp_c = a + 0.5 * (b - a);
+		bracket(func, a, b, temp_c, fa, fb, tol, neps, d, fd);
+
 		if (fa == 0.0 || b - a <= tol)
 		{
-			break;
+			return a;
 		}
 	}
-	return 0.5 * (a + b); // converged
+	throw std::runtime_error("no convergenced");
 }
