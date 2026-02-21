@@ -2,8 +2,7 @@
 #define __GRADIENT_STRATEGY_H
 
 #include <functional>
-
-using namespace std;
+#include <Eigen/Dense>
 #include "matrix_ops.h"
 
 namespace gradients

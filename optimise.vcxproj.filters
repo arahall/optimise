@@ -33,7 +33,7 @@
     <ClInclude Include="matrix\matrix_ops.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="toms748\toms748.h">
+    <ClInclude Include="nm_simplex\nm_simplex.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -50,7 +50,16 @@
     <ClCompile Include="matrix\matrix_ops.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="toms748\toms748.cpp">
+    <ClCompile Include="roots\toms748.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="roots\ridders.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="roots\brent.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="nm_simplex\nm_simplex.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
