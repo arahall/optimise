@@ -3,9 +3,10 @@
 
 namespace  // anonymous namespace rather than static functions
 {
-	void initialise(Eigen::MatrixXd& simplex, const Eigen::VectorXd& point)
+	Eigen::MatrixXd initialise(const Eigen::VectorXd& point)
 	{
 		int n = point.size();
+		Eigen::MatrixXd simplex(n + 1, n);
 		for (int i = 0; i < n + 1; i++)
 		{
 			simplex.row(i) = point.transpose();
@@ -15,18 +16,21 @@ namespace  // anonymous namespace rather than static functions
 		{
 			simplex(i + 1, i) += (std::abs(point(i)) > 1e-8) ? 0.05 * point(i) : 0.05;
 		}
+		return simplex;
 	}
-	void evaluate(const Eigen::MatrixXd& simplex, std::function<double(const Eigen::VectorXd&)> func,
-				  Eigen::VectorXd& fx)
+	Eigen::VectorXd evaluate(const Eigen::MatrixXd& simplex, std::function<double(const Eigen::VectorXd&)> &func)
 	{
 		int n = simplex.rows();
+		Eigen::VectorXd fx(n);
 		for (int i = 0; i < n; ++i)
 		{
 			fx(i) = func(simplex.row(i).transpose());
 		}
+		return fx;
 	}
-	void extremes(const Eigen::VectorXd& fx, int& ihi, int& ilo, int& inhi)
+	std::tuple<int, int, int> extremes(const Eigen::VectorXd& fx)
 	{
+		int ilo, ihi, inhi;
 		if (fx(0) > fx(1))
 		{
 			ihi = 0; ilo = 1; inhi = 0;
@@ -50,11 +54,12 @@ namespace  // anonymous namespace rather than static functions
 				inhi = i;
 			}
 		}
+		return { ilo, ihi, inhi };
 	}
-	void bearings(const Eigen::MatrixXd& simplex, Eigen::VectorXd& mid_point, Eigen::VectorXd& sline, int ihi)
+	std::tuple<Eigen::VectorXd, Eigen::VectorXd> bearings(const Eigen::MatrixXd& simplex, int ihi)
 	{
-		int n = mid_point.size();
-		mid_point.setZero();
+		int n = simplex.rows() - 1;
+		Eigen::VectorXd mid_point = Eigen::VectorXd::Zero(n);
 
 		for (int i = 0; i < n + 1; ++i)
 		{
@@ -66,13 +71,15 @@ namespace  // anonymous namespace rather than static functions
 				}
 			}
 		}
+		Eigen::VectorXd sline(n);
 		for (int j = 0; j < n; ++j)
 		{
 			mid_point(j) /= n;
-			sline[j] = simplex(ihi, j) - mid_point(j);
+			sline(j) = simplex(ihi, j) - mid_point(j);
 		}
+		return { mid_point, sline };
 	}
-	bool update(std::function<double(const Eigen::VectorXd&)> func,
+	bool update(std::function<double(const Eigen::VectorXd&)> &func,
 				Eigen::MatrixXd& simplex, Eigen::VectorXd& fx,
 				const Eigen::VectorXd& mid_point,
 				const Eigen::VectorXd& sline,
@@ -91,7 +98,7 @@ namespace  // anonymous namespace rather than static functions
 
 		return true;
 	}
-	void contract(Eigen::MatrixXd& simplex, std::function<double(const Eigen::VectorXd&)> func,
+	void contract(Eigen::MatrixXd& simplex, const std::function<double(const Eigen::VectorXd&)> &func,
 				  Eigen::VectorXd& fx, int ilo)
 	{
 		int n = simplex.rows();
@@ -113,32 +120,29 @@ namespace  // anonymous namespace rather than static functions
 		return delta < accuracy + ZEPS;
 	}
 }
-bool NelderMeadSimplex::optimise(Eigen::VectorXd& point, 
-								 std::function<double(const Eigen::VectorXd&)> func, 
+bool NelderMeadSimplex::optimise(std::function<double(const Eigen::VectorXd&)> func, 
+								 Eigen::VectorXd& point,
 								 double tol, int max_iter)
 {
-	int n = point.size();
-	int ihi = 0, ilo = 0, inhi = 0;
-	Eigen::MatrixXd simplex(n + 1, n);
-	Eigen::VectorXd fx = Eigen::VectorXd::Zero(n + 1);
-	Eigen::VectorXd mid = Eigen::VectorXd::Zero(n);
-	Eigen::VectorXd line = Eigen::VectorXd::Ones(n);
-
-
-	initialise(simplex, point);
-	evaluate(simplex, func, fx);
+	if (point.size() == 0)
+	{
+		throw std::runtime_error("Nelder Mead Simplex - empty initial vector supplied\n");
+	}
+	int ilo = 0;
+	Eigen::MatrixXd simplex = initialise(point);
+	Eigen::VectorXd fx = evaluate(simplex, func);
 
 	for (int iter = 0; iter < max_iter; ++iter)
 	{
-		extremes(fx, ihi, ilo, inhi);
-		bearings(simplex, mid, line, ihi);
-
+		int ihi, inhi;
+		std::tie(ilo, ihi, inhi) = extremes(fx);
+		Eigen::VectorXd mid, line;
 		if (check_tol(fx(ihi), fx(ilo), tol))
 		{
 			point = simplex.row(ilo);
 			return true;
 		}
-
+		std::tie(mid, line) = bearings(simplex, ihi);
 		bool reflected = update(func, simplex, fx, mid, line, ihi, -1.0);
 
 		if (reflected && fx(ihi) < fx(ilo))

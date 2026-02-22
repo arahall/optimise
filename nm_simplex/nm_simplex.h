@@ -6,7 +6,7 @@
 
 namespace NelderMeadSimplex
 {
-	bool optimise(Eigen::VectorXd & p, std::function<double(const Eigen::VectorXd&)> func,
+	bool optimise(std::function<double(const Eigen::VectorXd&)> func, Eigen::VectorXd &p,
 				  double tol = 1.0e-4, int max_iter = 200);
 };
 #endif

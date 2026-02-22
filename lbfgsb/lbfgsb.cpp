@@ -221,8 +221,8 @@ static bool subspace_minimisation(const VectorXd& x, const VectorXd& g, const Ve
 	return true;
 }
 
-static double alpha_zoom(function<double(const VectorXd&)> func,
-						 function<VectorXd(const VectorXd&)> gradient,
+static double alpha_zoom(const function<double(const VectorXd&)> &func,
+						 const function<VectorXd(const VectorXd&)> &gradient,
 						 const VectorXd& x0,
 						 double f0, const VectorXd& g0, const VectorXd& p,
 						 double alpha_lo, double alpha_hi,
@@ -261,8 +261,8 @@ static double alpha_zoom(function<double(const VectorXd&)> func,
 	}
 	return 0.5 * (alpha_hi + alpha_lo);
 }
-static double strong_wolfe(function<double(const VectorXd&)> func,
-						   function<VectorXd(const VectorXd&)> gradient,
+static double strong_wolfe(const function<double(const VectorXd&)> &func,
+						   const function<VectorXd(const VectorXd&)> &gradient,
 						   const VectorXd& x0, double f0, const VectorXd& g0,
 						   const VectorXd& p, int max_iters, double c1, double c2, double alpha_max)
 {
