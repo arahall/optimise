@@ -7,12 +7,12 @@ namespace  // anonymous namespace rather than static functions
 	{
 		int n = point.size();
 		Eigen::MatrixXd simplex(n + 1, n);
-		for (int i = 0; i < n + 1; i++)
+		for (int i = 0; i < n + 1; ++i)
 		{
 			simplex.row(i) = point.transpose();
 		}
 
-		for (int i = 0; i < n; i++)
+		for (int i = 0; i < n; ++i)
 		{
 			simplex(i + 1, i) += (std::abs(point(i)) > 1e-8) ? 0.05 * point(i) : 0.05;
 		}
