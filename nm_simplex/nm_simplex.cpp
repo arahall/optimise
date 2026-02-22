@@ -18,7 +18,7 @@ namespace  // anonymous namespace rather than static functions
 		}
 		return simplex;
 	}
-	Eigen::VectorXd evaluate(const Eigen::MatrixXd& simplex, std::function<double(const Eigen::VectorXd&)> &func)
+	Eigen::VectorXd evaluate(const Eigen::MatrixXd& simplex, const std::function<double(const Eigen::VectorXd&)> &func)
 	{
 		int n = simplex.rows();
 		Eigen::VectorXd fx(n);
@@ -79,7 +79,7 @@ namespace  // anonymous namespace rather than static functions
 		}
 		return { mid_point, sline };
 	}
-	bool update(std::function<double(const Eigen::VectorXd&)> &func,
+	bool update(const std::function<double(const Eigen::VectorXd&)> &func,
 				Eigen::MatrixXd& simplex, Eigen::VectorXd& fx,
 				const Eigen::VectorXd& mid_point,
 				const Eigen::VectorXd& sline,
@@ -111,7 +111,7 @@ namespace  // anonymous namespace rather than static functions
 			}
 		}
 	}
-	bool check_tol(const double& fmax, const double& fmin, const double& tol)
+	bool check_tol(double fmax, double fmin, double tol)
 	{
 		const double ZEPS = 0.0000000001;
 
@@ -136,12 +136,12 @@ bool NelderMeadSimplex::optimise(std::function<double(const Eigen::VectorXd&)> f
 	{
 		int ihi, inhi;
 		std::tie(ilo, ihi, inhi) = extremes(fx);
-		Eigen::VectorXd mid, line;
 		if (check_tol(fx(ihi), fx(ilo), tol))
 		{
 			point = simplex.row(ilo);
 			return true;
 		}
+		Eigen::VectorXd mid, line;
 		std::tie(mid, line) = bearings(simplex, ihi);
 		bool reflected = update(func, simplex, fx, mid, line, ihi, -1.0);
 
