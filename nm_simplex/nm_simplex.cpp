@@ -7,11 +7,7 @@ namespace  // anonymous namespace rather than static functions
 	{
 		int n = point.size();
 		Eigen::MatrixXd simplex(n + 1, n);
-		for (int i = 0; i < n + 1; ++i)
-		{
-			simplex.row(i) = point.transpose();
-		}
-
+		simplex.rowwise() = point.transpose();
 		for (int i = 0; i < n; ++i)
 		{
 			simplex(i + 1, i) += (std::abs(point(i)) > 1e-8) ? 0.05 * point(i) : 0.05;
@@ -33,11 +29,11 @@ namespace  // anonymous namespace rather than static functions
 		int ilo, ihi, inhi;
 		if (fx(0) > fx(1))
 		{
-			ihi = 0; ilo = 1; inhi = 0;
+			ihi = 0; ilo = 1; inhi = 1;
 		}
 		else
 		{
-			ihi = 1; ilo = 0; inhi = 1;
+			ihi = 1; ilo = 0; inhi = 0;
 		}
 		for (int i = 2; i < fx.size(); ++i)
 		{
@@ -56,57 +52,34 @@ namespace  // anonymous namespace rather than static functions
 		}
 		return { ilo, ihi, inhi };
 	}
-	std::tuple<Eigen::VectorXd, Eigen::VectorXd> bearings(const Eigen::MatrixXd& simplex, int ihi)
+	Eigen::VectorXd centroid(const Eigen::MatrixXd& simplex, int ihi)
 	{
 		int n = simplex.rows() - 1;
-		Eigen::VectorXd mid_point = Eigen::VectorXd::Zero(n);
-
+		Eigen::VectorXd c = Eigen::VectorXd::Zero(n);
 		for (int i = 0; i < n + 1; ++i)
 		{
 			if (i != ihi)
 			{
-				for (int j = 0; j < n; ++j)
-				{
-					mid_point(j) += simplex(i, j);
-				}
+				c += simplex.row(i).transpose();
 			}
 		}
-		Eigen::VectorXd sline(n);
-		for (int j = 0; j < n; ++j)
-		{
-			mid_point(j) /= n;
-			sline(j) = simplex(ihi, j) - mid_point(j);
-		}
-		return { mid_point, sline };
+		c /= n;
+		return c;	
 	}
-	bool update(const std::function<double(const Eigen::VectorXd&)> &func,
-				Eigen::MatrixXd& simplex, Eigen::VectorXd& fx,
-				const Eigen::VectorXd& mid_point,
-				const Eigen::VectorXd& sline,
-				int ihi,
-				double scale_factor)
+	Eigen::VectorXd interp(const Eigen::VectorXd& x0, const Eigen::VectorXd & x1, double w)
 	{
-		Eigen::VectorXd next_val = mid_point + scale_factor * sline;
-		double f = func(next_val);
-		if (f >= fx(ihi))
-		{
-			return false;
-		}
-
-		simplex.row(ihi) = next_val.transpose();
-		fx(ihi) = f;
-
-		return true;
+		return x0 + w * (x0 - x1);
 	}
 	void contract(Eigen::MatrixXd& simplex, const std::function<double(const Eigen::VectorXd&)> &func,
-				  Eigen::VectorXd& fx, int ilo)
+				  Eigen::VectorXd& fx, int ilo, double sigma)
 	{
 		int n = simplex.rows();
+		Eigen::VectorXd x1 = simplex.row(ilo).transpose();
 		for (int i = 0; i < n; ++i)
 		{
 			if (i != ilo)
 			{
-				simplex.row(i) = 0.5 * (simplex.row(i) + simplex.row(ilo));
+				simplex.row(i) = x1 + sigma * (simplex.row(i) - x1);
 				fx(i) = func(simplex.row(i).transpose());
 			}
 		}
@@ -120,40 +93,80 @@ namespace  // anonymous namespace rather than static functions
 		return delta < accuracy + ZEPS;
 	}
 }
-bool NelderMeadSimplex::optimise(std::function<double(const Eigen::VectorXd&)> func, 
-								 Eigen::VectorXd& point,
+bool NelderMeadSimplex::optimize(const std::function<double(const Eigen::VectorXd&)> &func, 
+								 Eigen::VectorXd& point, double alpha, double gamma, double rho, double sigma,
 								 double tol, int max_iter)
 {
 	if (point.size() == 0)
 	{
 		throw std::runtime_error("Nelder Mead Simplex - empty initial vector supplied\n");
 	}
+
 	int ilo = 0;
 	Eigen::MatrixXd simplex = initialise(point);
-	Eigen::VectorXd fx = evaluate(simplex, func);
-
 	for (int iter = 0; iter < max_iter; ++iter)
 	{
+		Eigen::VectorXd fx = evaluate(simplex, func);
 		int ihi, inhi;
 		std::tie(ilo, ihi, inhi) = extremes(fx);
+
 		if (check_tol(fx(ihi), fx(ilo), tol))
 		{
 			point = simplex.row(ilo);
 			return true;
 		}
-		Eigen::VectorXd mid, line;
-		std::tie(mid, line) = bearings(simplex, ihi);
-		bool reflected = update(func, simplex, fx, mid, line, ihi, -1.0);
 
-		if (reflected && fx(ihi) < fx(ilo))
+		Eigen::VectorXd x0 = centroid(simplex, ihi);
+		Eigen::VectorXd xr = x0 + alpha * (x0 - simplex.row(ihi).transpose());
+		double fx_r = func(xr);
+		if (fx_r >= fx(ilo) && fx_r < fx(inhi))
 		{
-			update(func, simplex, fx, mid, line, ihi, -2.0);
+			// reflection
+			simplex.row(ihi) = xr.transpose();
 		}
-		else if (fx(ihi) >= fx(inhi))
+		else if (fx_r < fx(ilo))
 		{
-			if (!update(func, simplex, fx, mid, line, ihi, 0.5))
+			// expansion
+			Eigen::VectorXd xe = x0 + gamma * (xr - x0);
+			double fx_e = func(xe);
+			if (fx_e < fx_r)
 			{
-				contract(simplex, func, fx, ilo);
+				simplex.row(ihi) = xe.transpose();
+			}
+			else
+			{
+				simplex.row(ihi) = xr.transpose();
+			}
+		}
+		else
+		{
+			// contraction
+			if (fx_r < fx(ihi))
+			{
+				Eigen::VectorXd xc = x0 + rho * (xr - x0);
+				double fx_c = func(xc);
+				if (fx_c < fx_r)
+				{
+					simplex.row(ihi) = xc.transpose();
+				}
+				else
+				{
+					// shrink
+					contract(simplex, func, fx, ilo, sigma);
+				}
+			}
+			else
+			{
+				Eigen::VectorXd xc = x0 + rho * (simplex.row(ihi).transpose() - x0);
+				double fx_c = func(xc);
+				if (fx_c < fx(ihi))
+				{
+					simplex.row(ihi) = xc.transpose();
+				}
+				else
+				{
+					contract(simplex, func, fx, ilo, sigma);
+				}
 			}
 		}
 	}
