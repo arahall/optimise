@@ -132,16 +132,17 @@ namespace  // anonymous namespace rather than static functions
 			else
 			{
 				// contraction
-				Eigen::VectorXd x_contract = fx_r < fx(ihi) ? xr : simplex.row(ihi).transpose();
+				bool use_reflection = fx_r < fx(ihi);
+				Eigen::VectorXd x_contract = use_reflection ? xr : simplex.row(ihi).transpose();
+				double fx_contract_limit = use_reflection ? fx_r : fx(ihi);
 				Eigen::VectorXd xc = x0 + rho * (x_contract - x0);
 				double fx_c = func(xc);
-				if (fx_c < std::min(fx_r, fx(ihi)))
+				if (fx_c < fx_contract_limit)
 				{
 					simplex.row(ihi) = xc.transpose();
 				}
 				else
 				{
-					// shrink
 					contract(simplex, func, fx, ilo, sigma);
 				}
 			}
@@ -161,7 +162,7 @@ bool NelderMeadSimplex::optimize(const std::function<double(const Eigen::VectorX
 	for (int restart = 0; restart < max_restarts; ++restart)
 	{
 		bool status = amoeba(func, point, alpha, gamma, rho, sigma, tol, max_iter);
-		if (status && func(point) <= tol)
+		if (status)
 		{
 			return true;
 		}
