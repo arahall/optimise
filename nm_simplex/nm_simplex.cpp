@@ -14,7 +14,7 @@ namespace  // anonymous namespace rather than static functions
 		}
 		return simplex;
 	}
-	Eigen::VectorXd evaluate(const Eigen::MatrixXd& simplex, const std::function<double(const Eigen::VectorXd&)> &func)
+	Eigen::VectorXd evaluate(const Eigen::MatrixXd& simplex, const std::function<double(const Eigen::VectorXd&)>& func)
 	{
 		int n = simplex.rows();
 		Eigen::VectorXd fx(n);
@@ -64,13 +64,9 @@ namespace  // anonymous namespace rather than static functions
 			}
 		}
 		c /= n;
-		return c;	
+		return c;
 	}
-	Eigen::VectorXd interp(const Eigen::VectorXd& x0, const Eigen::VectorXd & x1, double w)
-	{
-		return x0 + w * (x0 - x1);
-	}
-	void contract(Eigen::MatrixXd& simplex, const std::function<double(const Eigen::VectorXd&)> &func,
+	void contract(Eigen::MatrixXd& simplex, const std::function<double(const Eigen::VectorXd&)>& func,
 				  Eigen::VectorXd& fx, int ilo, double sigma)
 	{
 		int n = simplex.rows();
@@ -79,7 +75,7 @@ namespace  // anonymous namespace rather than static functions
 		{
 			if (i != ilo)
 			{
-				simplex.row(i) = x1 + sigma * (simplex.row(i) - x1);
+				simplex.row(i) = x1 + sigma * (simplex.row(i).transpose() - x1);
 				fx(i) = func(simplex.row(i).transpose());
 			}
 		}
@@ -92,60 +88,54 @@ namespace  // anonymous namespace rather than static functions
 		double accuracy = (std::abs(fmax) + std::abs(fmin)) * tol;
 		return delta < accuracy + ZEPS;
 	}
-}
-bool NelderMeadSimplex::optimize(const std::function<double(const Eigen::VectorXd&)> &func, 
-								 Eigen::VectorXd& point, double alpha, double gamma, double rho, double sigma,
-								 double tol, int max_iter)
-{
-	if (point.size() == 0)
+
+	bool amoeba(const std::function<double(const Eigen::VectorXd&)>& func,
+				 Eigen::VectorXd& point, double alpha, double gamma, double rho, double sigma,
+				 double tol, int max_iter)
 	{
-		throw std::runtime_error("Nelder Mead Simplex - empty initial vector supplied\n");
-	}
-
-	int ilo = 0;
-	Eigen::MatrixXd simplex = initialise(point);
-	for (int iter = 0; iter < max_iter; ++iter)
-	{
-		Eigen::VectorXd fx = evaluate(simplex, func);
-		int ihi, inhi;
-		std::tie(ilo, ihi, inhi) = extremes(fx);
-
-		if (check_tol(fx(ihi), fx(ilo), tol))
+		int ilo = 0;
+		Eigen::MatrixXd simplex = initialise(point);
+		for (int iter = 0; iter < max_iter; ++iter)
 		{
-			point = simplex.row(ilo);
-			return true;
-		}
+			Eigen::VectorXd fx = evaluate(simplex, func);
+			int ihi, inhi;
+			std::tie(ilo, ihi, inhi) = extremes(fx);
 
-		Eigen::VectorXd x0 = centroid(simplex, ihi);
-		Eigen::VectorXd xr = x0 + alpha * (x0 - simplex.row(ihi).transpose());
-		double fx_r = func(xr);
-		if (fx_r >= fx(ilo) && fx_r < fx(inhi))
-		{
-			// reflection
-			simplex.row(ihi) = xr.transpose();
-		}
-		else if (fx_r < fx(ilo))
-		{
-			// expansion
-			Eigen::VectorXd xe = x0 + gamma * (xr - x0);
-			double fx_e = func(xe);
-			if (fx_e < fx_r)
+			if (check_tol(fx(ihi), fx(ilo), tol))
 			{
-				simplex.row(ihi) = xe.transpose();
+				point = simplex.row(ilo);
+				return true;
+			}
+
+			Eigen::VectorXd x0 = centroid(simplex, ihi);
+			Eigen::VectorXd xr = x0 + alpha * (x0 - simplex.row(ihi).transpose());
+			double fx_r = func(xr);
+			if (fx_r >= fx(ilo) && fx_r < fx(inhi))
+			{
+				// reflection
+				simplex.row(ihi) = xr.transpose();
+			}
+			else if (fx_r < fx(ilo))
+			{
+				// expansion
+				Eigen::VectorXd xe = x0 + gamma * (xr - x0);
+				double fx_e = func(xe);
+				if (fx_e < fx_r)
+				{
+					simplex.row(ihi) = xe.transpose();
+				}
+				else
+				{
+					simplex.row(ihi) = xr.transpose();
+				}
 			}
 			else
 			{
-				simplex.row(ihi) = xr.transpose();
-			}
-		}
-		else
-		{
-			// contraction
-			if (fx_r < fx(ihi))
-			{
-				Eigen::VectorXd xc = x0 + rho * (xr - x0);
+				// contraction
+				Eigen::VectorXd x_contract = fx_r < fx(ihi) ? xr : simplex.row(ihi).transpose();
+				Eigen::VectorXd xc = x0 + rho * (x_contract - x0);
 				double fx_c = func(xc);
-				if (fx_c < fx_r)
+				if (fx_c < std::min(fx_r, fx(ihi)))
 				{
 					simplex.row(ihi) = xc.transpose();
 				}
@@ -155,21 +145,26 @@ bool NelderMeadSimplex::optimize(const std::function<double(const Eigen::VectorX
 					contract(simplex, func, fx, ilo, sigma);
 				}
 			}
-			else
-			{
-				Eigen::VectorXd xc = x0 + rho * (simplex.row(ihi).transpose() - x0);
-				double fx_c = func(xc);
-				if (fx_c < fx(ihi))
-				{
-					simplex.row(ihi) = xc.transpose();
-				}
-				else
-				{
-					contract(simplex, func, fx, ilo, sigma);
-				}
-			}
+		}
+		point = simplex.row(ilo).transpose();
+		return false;
+	}
+}
+bool NelderMeadSimplex::optimize(const std::function<double(const Eigen::VectorXd&)>& func,
+								 Eigen::VectorXd& point, double alpha, double gamma, double rho, double sigma,
+								 double tol, int max_iter, int max_restarts)
+{
+	if (point.size() == 0)
+	{
+		throw std::runtime_error("Nelder Mead Simplex - empty initial vector supplied\n");
+	}
+	for (int restart = 0; restart < max_restarts; ++restart)
+	{
+		bool status = amoeba(func, point, alpha, gamma, rho, sigma, tol, max_iter);
+		if (status && func(point) <= tol)
+		{
+			return true;
 		}
 	}
-	point = simplex.row(ilo).transpose();
 	return false;
 }
