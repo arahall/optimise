@@ -11,7 +11,7 @@ namespace gradients
     {
     public:
         // Pure virtual function using the () operator for gradient calculation
-        virtual VectorXd operator()(const VectorXd& x) const = 0;
+        virtual Eigen::VectorXd operator()(const Eigen::VectorXd& x) const = 0;
 
         // Virtual destructor to ensure proper cleanup of derived classes
         virtual ~GradientStrategy() = default;
@@ -20,17 +20,17 @@ namespace gradients
     class NumericalGradient : public GradientStrategy
     {
     private:
-        function<double(const VectorXd&)> func;  // Objective function
+        std::function<double(const Eigen::VectorXd&)> func;  // Objective function
         double epsilon;
     public:
-        NumericalGradient(function<double(const VectorXd&)> func, double epsilon = 1e-4)
+        NumericalGradient(std::function<double(const Eigen::VectorXd&)> func, double epsilon = 1e-4)
             : func(func), epsilon(epsilon) {}
 
         // Overload the () operator
-        VectorXd operator()(const VectorXd& x) const override
+        Eigen::VectorXd operator()(const Eigen::VectorXd& x) const override
         {
-            VectorXd grad(x.size());
-            VectorXd x_plus = x;
+            Eigen::VectorXd grad(x.size());
+            Eigen::VectorXd x_plus = x;
 
             for (size_t i = 0; i < x.size(); ++i)
             {
@@ -51,14 +51,14 @@ namespace gradients
     class AnalyticalGradient : public GradientStrategy
     {
     private:
-        function<VectorXd(const VectorXd&)> grad_func;
+        std::function<Eigen::VectorXd(const Eigen::VectorXd&)> grad_func;
 
     public:
-        AnalyticalGradient(function<VectorXd(const VectorXd&)> grad_func)
+        AnalyticalGradient(std::function<Eigen::VectorXd(const Eigen::VectorXd&)> grad_func)
             : grad_func(grad_func) {}
 
         // Overload the () operator
-        VectorXd operator()(const VectorXd& x) const override
+        Eigen::VectorXd operator()(const Eigen::VectorXd& x) const override
         {
             return grad_func(x);  // Return the gradient using the provided function
         }

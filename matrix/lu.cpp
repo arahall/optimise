@@ -18,13 +18,13 @@ void lu::decompose(vector<vector<double>>& a, vector<size_t>& p)
 	}
 	for (size_t i = 0; i < n; ++i)
 	{
-		double max_a = 0.0;
+		double std::max_a = 0.0;
 		size_t imax = i;
 
 		for (size_t k = i; k < n; ++k)
 		{
 			double abs_a = fabs(a[k][i]);
-			if (abs_a > max_a)
+			if (abs_a > std::max_a)
 			{
 				max_a = abs_a;
 				imax = k;

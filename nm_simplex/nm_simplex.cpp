@@ -26,16 +26,11 @@ namespace  // anonymous namespace rather than static functions
 	}
 	std::tuple<Eigen::Index, Eigen::Index, Eigen::Index> extremes(const Eigen::VectorXd& fx)
 	{
-		Eigen::Index ilo, ihi, inhi;
-		if (fx(0) > fx(1))
-		{
-			ihi = 0; ilo = 1; inhi = 1;
-		}
-		else
-		{
-			ihi = 1; ilo = 0; inhi = 0;
-		}
-		for (int i = 2; i < fx.size(); ++i)
+		Eigen::Index ihi = (fx(0) > fx(1)) ? 0 : 1;
+		Eigen::Index ilo = ihi == 0 ? 1 : 0;
+		Eigen::Index inhi = ilo;  // the lesser of the first two — worst case for inhi
+
+		for (Eigen::Index i = 2; i < fx.size(); ++i) 
 		{
 			if (fx(i) <= fx(ilo))
 			{
