@@ -268,7 +268,7 @@ namespace
 		{
 			matrix_ops::add_scale(x0, p, alpha_i, x);
 			double f_i = func(x);
-			if ((f_i > f0 + c1 * dphi0) || (iter > 1 && f_i >= f_im1))
+			if (f_i > f0 + c1 * alpha_i * dphi0)
 			{
 				return alpha_zoom(func, gradient, x0, f0, g0, p, alpha_im1, alpha_i, max_iters, c1, c2);
 			}
@@ -291,25 +291,22 @@ namespace
 	}
 	Eigen::MatrixXd hessian(const Eigen::MatrixXd& s, const Eigen::MatrixXd& y, double theta)
 	{
-		Eigen::MatrixXd sT = s.transpose();
-
-		// Compute the matrix a and its lower triangular and diagonal parts
-		Eigen::MatrixXd a = sT * y;
-		Eigen::MatrixXd l = a.triangularView<Eigen::StrictlyLower>();
-		Eigen::MatrixXd d = -1 * a.diagonal().asDiagonal();
+		const int m = s.cols();
+		Eigen::MatrixXd a = s.transpose() * y;
 
 		// Preallocate the final matrix mm
-		Eigen::MatrixXd mm(d.rows() + l.rows(), d.cols() + l.rows());
+		Eigen::MatrixXd mm(2*m, 2*m);
 
 		// Fill the top part of mm (d and l.transpose())
-		mm.topLeftCorner(d.rows(), d.cols()) = d;
-		mm.topRightCorner(d.rows(), l.rows()) = l.transpose();
+		mm.topLeftCorner(m, m).setZero();
+		mm.topLeftCorner(m, m).diagonal() = -a.diagonal();
+		// top right 
+		mm.topRightCorner(m, m) = a.triangularView<Eigen::StrictlyLower>().transpose();
+		// Bottom-left: strictly lower tri of a
+		mm.bottomLeftCorner(m, m) = a.triangularView<Eigen::StrictlyLower>();
+		// Bottom-right: theta * s^T * s
+		mm.bottomRightCorner(m, m).noalias() = theta * s.transpose() * s;
 
-		// Fill the bottom part of mm (l and theta * s.transpose() * s)
-		mm.bottomLeftCorner(l.rows(), l.cols()) = l;
-		mm.bottomRightCorner(l.rows(), s.cols()).noalias() = theta * sT * s;
-
-		// Compute the inverse of the full matrix mm
 		return mm.partialPivLu().inverse();
 	}
 }
