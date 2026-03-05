@@ -218,7 +218,8 @@ namespace
 					  const Eigen::VectorXd& x0,
 					  double f0, const Eigen::VectorXd& g0, const Eigen::VectorXd& p,
 					  double alpha_lo, double alpha_hi,
-					  int max_iters, double c1, double c2)
+					  int max_iters, double c1, double c2,
+					  Eigen::VectorXd &grad_out)
 	{
 		size_t n = x0.size();
 		Eigen::VectorXd x(n), x_lo(n);
@@ -239,7 +240,8 @@ namespace
 			}
 			else
 			{
-				double dphi = gradient(x).dot(p);
+				grad_out = gradient(x);
+				double dphi = grad_out.dot(p);
 				if (std::abs(dphi) <= -c2 * dphi0)
 				{
 					return alpha_i;
@@ -255,11 +257,12 @@ namespace
 	}
 	double strong_wolfe(const std::function<double(const Eigen::VectorXd&)>& func,
 						const std::function<Eigen::VectorXd(const Eigen::VectorXd&)>& gradient,
-						const Eigen::VectorXd& x0, double f0, const Eigen::VectorXd& g0,
-						const Eigen::VectorXd& p, int max_iters, double c1, double c2, double alpha_max)
+						const Eigen::VectorXd& x0, double f0, const Eigen::VectorXd& g0, double alpha_init,
+						const Eigen::VectorXd& p, int max_iters, double c1, double c2, double alpha_max,
+						Eigen::VectorXd &grad_out)
 	{
 		// compute line search satisfying strong Wolfe conditions
-		double f_im1 = f0, alpha_im1 = 0.0, alpha_i = 1.0;
+		double f_im1 = f0, alpha_im1 = 0.0, alpha_i = alpha_init;
 		double dphi0 = g0.dot(p);
 		int n = x0.size();
 		Eigen::VectorXd x(n);
@@ -270,23 +273,24 @@ namespace
 			double f_i = func(x);
 			if (f_i > f0 + c1 * alpha_i * dphi0)
 			{
-				return alpha_zoom(func, gradient, x0, f0, g0, p, alpha_im1, alpha_i, max_iters, c1, c2);
+				return alpha_zoom(func, gradient, x0, f0, g0, p, alpha_im1, alpha_i, max_iters, c1, c2, grad_out);
 			}
-			Eigen::VectorXd g_i = gradient(x);
-			double dphi = g_i.dot(p);
+			grad_out = gradient(x);
+			double dphi = grad_out.dot(p);
 			if (std::abs(dphi) <= -c2 * dphi0)
 			{
 				return alpha_i;
 			}
 			if (dphi >= 0.0)
 			{
-				return alpha_zoom(func, gradient, x0, f0, g0, p, alpha_i, alpha_im1, max_iters, c1, c2);
+				return alpha_zoom(func, gradient, x0, f0, g0, p, alpha_i, alpha_im1, max_iters, c1, c2, grad_out);
 			}
 			// update
 			alpha_im1 = alpha_i;
 			f_im1 = f_i;
 			alpha_i += 0.8 * (alpha_max - alpha_i);
 		}
+
 		return alpha_i;
 	}
 	Eigen::MatrixXd hessian(const Eigen::MatrixXd& s, const Eigen::MatrixXd& y, double theta)
@@ -351,6 +355,7 @@ bool LBFGSB::optimize(const std::function<double(const Eigen::VectorXd&)> &func,
 	{
 		throw std::runtime_error("LBFGSB::optimise - length of gradient must be the same as the problem dimension");
 	}
+	double alpha_init = 1.0;
 	double theta = 1.0;
 	for (int iter = 0; iter < max_iter; ++iter)
 	{
@@ -380,7 +385,8 @@ bool LBFGSB::optimize(const std::function<double(const Eigen::VectorXd&)> &func,
 		std::tie(xc, c) = get_cauchy_point(x, g, lb, ub, theta, w, m);
 		bool flag = subspace_minimisation(x, g, lb, ub, xc, c, theta, w, m, xbar);
 		Eigen::VectorXd dx = xbar - x;
-		double alpha = flag ? std::min(1.0, strong_wolfe(func, gradient, x, f, g, dx, ln_srch_maxiter, c1, c2, alpha_max))
+		double alpha = flag ? std::min(1.0, strong_wolfe(func, gradient, x, f, g, alpha_init, 
+									   dx, ln_srch_maxiter, c1, c2, alpha_max, g))
 			: 1.0;
 		x += alpha * dx;
 		double f_new = func(x);
@@ -399,7 +405,6 @@ bool LBFGSB::optimize(const std::function<double(const Eigen::VectorXd&)> &func,
 			return true;
 		}
 		f = f_new;
-		g = gradient(x);
 		dx = x - x_old;
 		Eigen::VectorXd dg = g - g_old;
 		double curv = dx.dot(dg);
@@ -421,6 +426,7 @@ bool LBFGSB::optimize(const std::function<double(const Eigen::VectorXd&)> &func,
 		{
 			std::cout << "optimise - negative curvature detected. Hessian update skipped\n";
 		}
+		alpha_init = std::min(1.0, g_old.norm() / g.norm());
 	}
 	return false;
 }
